@@ -92,7 +92,7 @@ QuizSphere is an interactive web-based quiz application focused on Web Technolog
 
 ## 🙌 Author
 
-Developed by **Your Name**
+Developed by **Muhammad Rehan**
 
 ---
 
