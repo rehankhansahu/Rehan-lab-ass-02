@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QuizSphere — Interactive Quiz</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: rgba(255,255,255,0.04);
+      --surface-hover: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.08);
+      --text: #f0eeff;
+      --text-muted: rgba(240,238,255,0.45);
+      --accent: #7c4dff;
+      --accent2: #00e5ff;
+      --correct: #00e676;
+      --incorrect: #ff1744;
+      --warn: #ff9100;
+      --card-shadow: 0 8px 40px rgba(0,0,0,0.6);
+      --glow: 0 0 40px rgba(124,77,255,0.25);
+      --radius: 20px;
+      --radius-sm: 12px;
+    }
+    [data-theme="light"] {
+      --bg: #f0eeff;
+      --surface: rgba(255,255,255,0.75);
+      --surface-hover: rgba(255,255,255,0.95);
+      --border: rgba(124,77,255,0.12);
+      --text: #1a0a3d;
+      --text-muted: rgba(26,10,61,0.5);
+      --card-shadow: 0 8px 40px rgba(124,77,255,0.1);
+      --glow: 0 0 40px rgba(124,77,255,0.1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.4s, color 0.4s;
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 20%, rgba(124,77,255,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 60% at 80% 80%, rgba(0,229,255,0.12) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    [data-theme="light"] body::before {
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 20%, rgba(124,77,255,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 60% at 80% 80%, rgba(0,229,255,0.06) 0%, transparent 60%);
+    }
+
+    .orb {
+      position: fixed; border-radius: 50%; filter: blur(70px);
+      pointer-events: none; z-index: 0;
+      animation: drift 9s ease-in-out infinite alternate;
+    }
+    .orb-1 { width: 350px; height: 350px; background: rgba(124,77,255,0.12); top: -80px; left: -100px; }
+    .orb-2 { width: 280px; height: 280px; background: rgba(0,229,255,0.08); bottom: -60px; right: -60px; animation-delay: -5s; }
+    @keyframes drift { from { transform: translate(0,0); } to { transform: translate(25px,18px); } }
+
+    .theme-btn {
+      position: fixed; top: 20px; right: 20px; z-index: 100;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      cursor: pointer; font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(16px);
+      transition: all 0.3s;
+      box-shadow: var(--card-shadow);
+    }
+    .theme-btn:hover { transform: scale(1.1) rotate(15deg); }
+
+    .wrapper {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 660px;
+    }
+
+    .card {
+      background: var(--surface);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 42px;
+      box-shadow: var(--card-shadow), var(--glow);
+      animation: fadeUp 0.5s cubic-bezier(.2,.8,.4,1) both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ── START SCREEN ── */
+    #start-screen { text-align: center; }
+
+    .logo-wrap { margin-bottom: 8px; }
+    .logo-icon { font-size: 52px; display: block; margin-bottom: 8px; animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.08);} }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-size: 44px; font-weight: 800;
+      background: linear-gradient(135deg, #7c4dff 0%, #00e5ff 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: -1.5px;
+    }
+    .logo-tagline {
+      font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 36px;
+    }
+    .divider {
+      width: 60px; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px; margin: 12px auto 32px;
+    }
+    .info-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin-bottom: 36px;
+    }
+    .info-box {
+      background: var(--surface-hover);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 10px;
+      text-align: center;
+    }
+    .info-box .ib-icon { font-size: 22px; margin-bottom: 6px; }
+    .info-box .ib-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 20px; color: var(--accent2); }
+    .info-box .ib-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: linear-gradient(135deg, #7c4dff, #b66dff);
+      color: #fff; border: none; border-radius: 50px;
+      padding: 16px 40px;
+      font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: all 0.25s;
+      box-shadow: 0 4px 24px rgba(124,77,255,0.45);
+      letter-spacing: 0.5px;
+    }
+    .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 10px 32px rgba(124,77,255,0.55); }
+    .btn-primary:active { transform: translateY(-1px); }
+
+    .btn-outline {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--accent2);
+      border: 1.5px solid var(--accent2); border-radius: 50px;
+      padding: 13px 30px;
+      font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all 0.25s;
+    }
+    .btn-outline:hover { background: rgba(0,229,255,0.08); transform: translateY(-2px); }
+
+    /* ── QUIZ SCREEN ── */
+    #quiz-screen { display: none; }
+
+    .quiz-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 18px;
+    }
+    .q-counter {
+      font-size: 13px; color: var(--text-muted); font-weight: 500;
+    }
+    .q-counter strong {
+      font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800;
+      color: var(--text);
+    }
+
+    /* Timer */
+    .timer-ring { position: relative; width: 52px; height: 52px; }
+    .timer-ring svg { transform: rotate(-90deg); }
+    .timer-ring circle { fill: none; stroke-width: 3.5; }
+    .timer-track { stroke: var(--border); }
+    .timer-progress {
+      stroke: var(--accent2); stroke-linecap: round;
+      transition: stroke-dashoffset 1s linear, stroke 0.4s;
+    }
+    .timer-text {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px;
+      color: var(--text);
+    }
+
+    /* Segmented bar */
+    .seg-bar { display: flex; gap: 5px; margin-bottom: 26px; }
+    .seg {
+      flex: 1; height: 6px; border-radius: 3px;
+      background: var(--border);
+      position: relative; overflow: hidden;
+      transition: background 0.4s;
+    }
+    .seg-fill {
+      position: absolute; inset: 0;
+      border-radius: 3px;
+      transform: scaleX(0); transform-origin: left;
+      transition: transform 0.5s cubic-bezier(.4,0,.2,1);
+    }
+    .seg.done .seg-fill { transform: scaleX(1); }
+
+    .question-num-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+      padding: 3px 12px; border-radius: 50px;
+      letter-spacing: 1px; text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .question-text {
+      font-family: 'Syne', sans-serif;
+      font-size: 21px; font-weight: 700; line-height: 1.45;
+      margin-bottom: 24px; color: var(--text);
+      min-height: 60px; /* FIX: prevents layout jump when question loads */
+    }
+
+    /* Options */
+    .options { display: flex; flex-direction: column; gap: 11px; margin-bottom: 26px; }
+    .option {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--surface-hover);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 15px 18px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, transform 0.15s;
+      position: relative; overflow: hidden;
+    }
+    .option:hover:not(.locked) {
+      border-color: var(--accent);
+      transform: translateX(5px);
+      background: rgba(124,77,255,0.07);
+    }
+    .opt-letter {
+      min-width: 34px; height: 34px; border-radius: 9px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12px;
+      color: var(--text-muted);
+      transition: all 0.25s;
+    }
+    .opt-text { font-size: 14.5px; line-height: 1.4; }
+
+    .option.correct {
+      border-color: var(--correct);
+      background: rgba(0,230,118,0.07);
+      animation: popIn 0.35s ease;
+    }
+    .option.correct .opt-letter { background: var(--correct); color: #000; border-color: var(--correct); }
+    .option.correct .opt-text { color: var(--correct); }
+
+    .option.incorrect {
+      border-color: var(--incorrect);
+      background: rgba(255,23,68,0.07);
+      animation: shake 0.35s ease;
+    }
+    .option.incorrect .opt-letter { background: var(--incorrect); color: #fff; border-color: var(--incorrect); }
+    .option.incorrect .opt-text { color: var(--incorrect); }
+
+    @keyframes popIn { 0%{transform:scale(1)} 50%{transform:scale(1.015)} 100%{transform:scale(1)} }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+    .option.locked { cursor: default; pointer-events: none; }
+
+    .quiz-footer { display: flex; justify-content: flex-end; }
+
+    /* ── RESULT SCREEN ── */
+    #result-screen { display: none; text-align: center; }
+
+    .result-header { margin-bottom: 28px; }
+    .result-emoji { font-size: 48px; display: block; margin-bottom: 8px; }
+    .result-title {
+      font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800;
+      background: linear-gradient(135deg, #7c4dff, #00e5ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .result-sub { color: var(--text-muted); font-size: 14px; margin-top: 6px; }
+
+    /* Score ring */
+    .score-ring-wrap { display: flex; justify-content: center; margin-bottom: 28px; }
+    .score-ring { position: relative; width: 148px; height: 148px; }
+    .score-ring svg { transform: rotate(-90deg); }
+    .score-ring circle { fill: none; stroke-width: 9; }
+    .sr-track { stroke: var(--border); }
+    .sr-fill { stroke: url(#scoreGrad); stroke-linecap: round; transition: stroke-dashoffset 1.3s cubic-bezier(.4,0,.2,1); }
+    .score-ring-inner {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .score-num {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 34px;
+      background: linear-gradient(135deg, #7c4dff, #00e5ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .score-denom { font-size: 13px; color: var(--text-muted); }
+
+    /* Stats */
+    .stats-row { display: flex; gap: 10px; margin-bottom: 24px; }
+    .stat-chip {
+      flex: 1;
+      background: var(--surface-hover); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 16px 8px; text-align: center;
+    }
+    .stat-chip .sv { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 24px; margin-bottom: 2px; }
+    .stat-chip .sl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+    .stat-chip.c .sv { color: var(--correct); }
+    .stat-chip.w .sv { color: var(--incorrect); }
+    .stat-chip.s .sv { color: var(--accent2); }
+
+    /* Result table */
+    .rtable-wrap { text-align: left; margin-bottom: 26px; overflow-x: auto; }
+    .rtable-wrap h3 {
+      font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+      letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 500px; }
+    th {
+      background: var(--surface-hover);
+      padding: 10px 12px; text-align: left;
+      color: var(--text-muted); font-weight: 600;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px;
+    }
+    th:first-child { border-radius: 8px 0 0 8px; }
+    th:last-child { border-radius: 0 8px 8px 0; }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 50px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .badge.correct { background: rgba(0,230,118,0.12); color: var(--correct); }
+    .badge.incorrect { background: rgba(255,23,68,0.12); color: var(--incorrect); }
+    .badge.skipped { background: rgba(255,145,0,0.12); color: var(--warn); }
+
+    .action-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    /* Timeout overlay */
+    .timeout-flash {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(255,23,68,0.12);
+      pointer-events: none;
+      animation: flashAnim 0.5s ease both;
+    }
+    @keyframes flashAnim { 0%,100%{opacity:0} 40%{opacity:1} }
+
+    @media (max-width: 500px) {
+      .card { padding: 24px 16px; }
+      .question-text { font-size: 17px; }
+      .logo { font-size: 34px; }
+      .info-grid { grid-template-columns: repeat(3, 1fr); }
+      .info-box .ib-val { font-size: 16px; }
+      .stats-row { gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <button class="theme-btn" id="themeBtn" title="Toggle theme">🌙</button>
+
+  <div class="wrapper">
+
+    <!-- START SCREEN -->
+    <div class="card" id="start-screen">
+      <div class="logo-wrap">
+        <span class="logo-icon">🔮</span>
+        <div class="logo">QuizSphere</div>
+        <div class="logo-tagline">Web Technologies Challenge</div>
+        <div class="divider"></div>
+      </div>
+      <div class="info-grid">
+        <div class="info-box">
+          <div class="ib-icon">📝</div>
+          <div class="ib-val">10</div>
+          <div class="ib-lbl">Questions</div>
+        </div>
+        <div class="info-box">
+          <div class="ib-icon">⏱</div>
+          <div class="ib-val">15s</div>
+          <div class="ib-lbl">Per Question</div>
+        </div>
+        <div class="info-box">
+          <div class="ib-icon">🎯</div>
+          <div class="ib-val">MCQ</div>
+          <div class="ib-lbl">Format</div>
+        </div>
+      </div>
+      <button class="btn-primary" id="startBtn">
+        Launch Quiz &nbsp;→
+      </button>
+    </div>
+
+    <!-- QUIZ SCREEN -->
+    <div class="card" id="quiz-screen">
+      <div class="quiz-header">
+        <div class="q-counter">
+          Question <strong id="q-num">1</strong> <span style="color:var(--text-muted)">of</span> <strong id="q-total">10</strong>
+        </div>
+        <div class="timer-ring">
+          <svg viewBox="0 0 52 52" width="52" height="52">
+            <circle class="timer-track" cx="26" cy="26" r="22"/>
+            <circle class="timer-progress" id="timerCircle"
+              cx="26" cy="26" r="22"
+              stroke-dasharray="138.23"
+              stroke-dashoffset="0"/>
+          </svg>
+          <div class="timer-text" id="timerText">15</div>
+        </div>
+      </div>
+
+      <div class="seg-bar" id="segBar"></div>
+
+      <div class="question-num-badge" id="qBadge">Q1</div>
+      <div class="question-text" id="questionText"></div>
+
+      <div class="options" id="optionsWrap"></div>
+
+      <div class="quiz-footer">
+        <button class="btn-primary" id="nextBtn" style="display:none;">
+          Next &nbsp;→
+        </button>
+      </div>
+    </div>
+
+    <!-- RESULT SCREEN -->
+    <div class="card" id="result-screen">
+      <div class="result-header">
+        <span class="result-emoji" id="resultEmoji">🏆</span>
+        <div class="result-title" id="resultTitle">Quiz Complete!</div>
+        <div class="result-sub" id="resultSub">Here's how you did</div>
+      </div>
+
+      <div class="score-ring-wrap">
+        <div class="score-ring">
+          <svg viewBox="0 0 148 148" width="148" height="148">
+            <defs>
+              <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#7c4dff"/>
+                <stop offset="100%" stop-color="#00e5ff"/>
+              </linearGradient>
+            </defs>
+            <circle class="sr-track" cx="74" cy="74" r="64"/>
+            <circle class="sr-fill" id="scoreCircle" cx="74" cy="74" r="64"
+              stroke-dasharray="402.12" stroke-dashoffset="402.12"/>
+          </svg>
+          <div class="score-ring-inner">
+            <div class="score-num" id="scoreNum">0</div>
+            <div class="score-denom" id="scoreDenom">/ 10</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-chip c"><div class="sv" id="statCorrect">0</div><div class="sl">Correct</div></div>
+        <div class="stat-chip w"><div class="sv" id="statWrong">0</div><div class="sl">Wrong</div></div>
+        <div class="stat-chip s"><div class="sv" id="statSkipped">0</div><div class="sl">Skipped</div></div>
+        <div class="stat-chip" style="border-color: rgba(124,77,255,0.3)">
+          <div class="sv" id="statPct" style="background:linear-gradient(135deg,#7c4dff,#00e5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-family:'Syne',sans-serif;font-weight:800;font-size:24px;">0%</div>
+          <div class="sl">Score</div>
+        </div>
+      </div>
+
+      <div class="rtable-wrap">
+        <h3>Answer Breakdown</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Question</th><th>Your Answer</th><th>Correct Answer</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="resultBody"></tbody>
+        </table>
+      </div>
+
+      <div class="action-row">
+        <button class="btn-primary" id="downloadBtn">⬇&nbsp; Download PDF</button>
+        <button class="btn-outline" id="restartBtn">↺&nbsp; Try Again</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── QUESTION BANK ──
+    const ALL_QUESTIONS = [
+      { q: "Which HTML element is used to link an external CSS file?", opts: ["<style>","<link>","<script>","<css>"], ans: 1 },
+      { q: "Which CSS property controls the text size?", opts: ["font-weight","text-size","font-size","size"], ans: 2 },
+      { q: "What does the 'D' stand for in DOM?", opts: ["Design","Document","Display","Dynamic"], ans: 1 },
+      { q: "Which JavaScript method selects an element by ID?", opts: ["querySelector()","getElementById()","getElement()","selectId()"], ans: 1 },
+      { q: "Which HTML attribute specifies an alternate text for an image?", opts: ["src","title","alt","href"], ans: 2 },
+      { q: "Which JS keyword declares a block-scoped variable?", opts: ["const","let","var","all of these"], ans: 1 },
+      { q: "Which CSS property makes a container flexbox?", opts: ["display: grid","display: block","display: flex","position: flex"], ans: 2 },
+      { q: "Which HTML tag creates an ordered list?", opts: ["<ul>","<li>","<ol>","<list>"], ans: 2 },
+      { q: "What does CSS stand for?", opts: ["Creative Style Sheets","Cascading Style Sheets","Computer Style Sheets","Colorful Style Sheets"], ans: 1 },
+      { q: "Which method removes the last element of an array?", opts: ["shift()","unshift()","pop()","splice()"], ans: 2 },
+      { q: "Which JS array method adds an element to the end?", opts: ["push()","pop()","unshift()","shift()"], ans: 0 },
+      { q: "Which CSS property changes the text color?", opts: ["font-color","background-color","color","text-color"], ans: 2 },
+      { q: "What is the correct HTML tag for the largest heading?", opts: ["<h6>","<head>","<h1>","<heading>"], ans: 2 },
+      { q: "Which HTML attribute is used in a <link> tag to specify file path?", opts: ["src","href","rel","type"], ans: 1 },
+      { q: "Which Bootstrap class makes a full-width column?", opts: ["col-sm-12","col-12","col-xs-full","col-full"], ans: 1 },
+    ];
+
+    const TIMER_SEC = 15;
+    const Q_COUNT  = 10;
+    const SEG_COLORS = ['#7c4dff','#00b0ff','#00e5ff','#00e676','#ffea00','#ff9100','#ff4081','#b2ff59','#40c4ff','#ea80fc'];
+
+    let questions = [], current = 0, score = 0, timer = null, timeLeft = 0;
+    let userAnswers = [];
+
+    // ── THEME ──
+    const themeBtn = document.getElementById('themeBtn');
+    let dark = true;
+    themeBtn.addEventListener('click', () => {
+      dark = !dark;
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      themeBtn.textContent = dark ? '🌙' : '☀️';
+    });
+
+    // ── UTILS ──
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    // FIX: helper to safely show/hide screens
+    function showScreen(id) {
+      ['start-screen', 'quiz-screen', 'result-screen'].forEach(s => {
+        const el = document.getElementById(s);
+        el.style.display = 'none';
+        el.style.animation = 'none';
+      });
+      const el = document.getElementById(id);
+      el.style.display = 'block';
+      // Force reflow before re-applying animation
+      void el.offsetHeight;
+      el.style.animation = 'fadeUp 0.5s cubic-bezier(.2,.8,.4,1) both';
+    }
+
+    // ── EVENT LISTENERS (set once, never inline onclick) ──
+    document.getElementById('startBtn').addEventListener('click', startQuiz);
+    document.getElementById('nextBtn').addEventListener('click', nextQuestion);
+    document.getElementById('downloadBtn').addEventListener('click', downloadPDF);
+    document.getElementById('restartBtn').addEventListener('click', restartQuiz);
+
+    // ── START ──
+    function startQuiz() {
+      // FIX: validate question bank before proceeding
+      if (!ALL_QUESTIONS || ALL_QUESTIONS.length < Q_COUNT) {
+        alert('Question bank is too small!');
+        return;
+      }
+
+      questions = shuffle(ALL_QUESTIONS).slice(0, Q_COUNT);
+      current = 0;
+      score = 0;
+      userAnswers = [];
+
+      document.getElementById('q-total').textContent = Q_COUNT;
+      showScreen('quiz-screen');
+      buildSegBar();
+      // FIX: small timeout so the screen is fully rendered before injecting question
+      setTimeout(loadQuestion, 50);
+    }
+
+    function buildSegBar() {
+      const bar = document.getElementById('segBar');
+      bar.innerHTML = '';
+      for (let i = 0; i < Q_COUNT; i++) {
+        const seg = document.createElement('div');
+        seg.className = 'seg';
+        seg.innerHTML = `<div class="seg-fill" style="background:${SEG_COLORS[i]}"></div>`;
+        bar.appendChild(seg);
+      }
+    }
+
+    function markSeg(index, status) {
+      const segs = document.querySelectorAll('.seg');
+      if (!segs[index]) return;
+      const fill = segs[index].querySelector('.seg-fill');
+      if (status === 'correct')        fill.style.background = '#00e676';
+      else if (status === 'incorrect') fill.style.background = '#ff1744';
+      else                             fill.style.background = '#ff9100';
+      segs[index].classList.add('done');
+    }
+
+    // ── LOAD QUESTION ──
+    function loadQuestion() {
+      clearInterval(timer);
+
+      // FIX: guard against out-of-bounds
+      if (current >= questions.length) { showResults(); return; }
+
+      const q = questions[current];
+
+      // FIX: validate question object has required fields
+      if (!q || !q.q || !q.opts || q.opts.length < 4 || q.ans === undefined) {
+        console.error('Invalid question at index', current, q);
+        current++;
+        loadQuestion();
+        return;
+      }
+
+      document.getElementById('q-num').textContent      = current + 1;
+      document.getElementById('qBadge').textContent     = `Q${current + 1}`;
+      document.getElementById('questionText').textContent = q.q;
+      document.getElementById('nextBtn').style.display  = 'none';
+
+      const wrap = document.getElementById('optionsWrap');
+      wrap.innerHTML = '';
+
+      ['A','B','C','D'].forEach((letter, i) => {
+        const div = document.createElement('div');
+        div.className = 'option';
+        // FIX: use textContent for opt-text to prevent XSS with any special chars
+        const letterDiv = document.createElement('div');
+        letterDiv.className = 'opt-letter';
+        letterDiv.textContent = letter;
+
+        const textDiv = document.createElement('div');
+        textDiv.className = 'opt-text';
+        textDiv.textContent = q.opts[i];
+
+        div.appendChild(letterDiv);
+        div.appendChild(textDiv);
+        div.addEventListener('click', () => selectAnswer(i));
+        wrap.appendChild(div);
+      });
+
+      startTimer();
+    }
+
+    // ── TIMER ──
+    function startTimer() {
+      timeLeft = TIMER_SEC;
+      const circle = document.getElementById('timerCircle');
+      const text   = document.getElementById('timerText');
+      const circum = 138.23;
+
+      function update() {
+        const pct = timeLeft / TIMER_SEC;
+        circle.style.strokeDashoffset = circum * (1 - pct);
+        text.textContent = timeLeft;
+        if (pct > 0.5)       circle.style.stroke = '#00e5ff';
+        else if (pct > 0.25) circle.style.stroke = '#ff9100';
+        else                 circle.style.stroke = '#ff1744';
+      }
+
+      update();
+      timer = setInterval(() => {
+        timeLeft--;
+        update();
+        if (timeLeft <= 0) { clearInterval(timer); onTimeout(); }
+      }, 1000);
+    }
+
+    function onTimeout() {
+      const flash = document.createElement('div');
+      flash.className = 'timeout-flash';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 600);
+
+      lockOptions();
+      highlightCorrect(questions[current].ans);
+      userAnswers.push({
+        question: questions[current].q,
+        chosen: -1,
+        correct: questions[current].ans,
+        opts: questions[current].opts,
+        status: 'skipped'
+      });
+      markSeg(current, 'skipped');
+      setTimeout(() => { document.getElementById('nextBtn').style.display = 'inline-flex'; }, 400);
+    }
+
+    // ── SELECT ──
+    function selectAnswer(index) {
+      clearInterval(timer);
+      lockOptions();
+      const q = questions[current];
+      const opts = document.querySelectorAll('.option');
+
+      if (index === q.ans) {
+        opts[index].classList.add('correct');
+        score++;
+        userAnswers.push({ question: q.q, chosen: index, correct: q.ans, opts: q.opts, status: 'correct' });
+        markSeg(current, 'correct');
+      } else {
+        opts[index].classList.add('incorrect');
+        highlightCorrect(q.ans);
+        userAnswers.push({ question: q.q, chosen: index, correct: q.ans, opts: q.opts, status: 'incorrect' });
+        markSeg(current, 'incorrect');
+      }
+      setTimeout(() => { document.getElementById('nextBtn').style.display = 'inline-flex'; }, 350);
+    }
+
+    function lockOptions() {
+      document.querySelectorAll('.option').forEach(o => o.classList.add('locked'));
+    }
+    function highlightCorrect(idx) {
+      const opts = document.querySelectorAll('.option');
+      if (opts[idx]) opts[idx].classList.add('correct');
+    }
+
+    // ── NEXT ──
+    function nextQuestion() {
+      current++;
+      if (current >= Q_COUNT) { showResults(); return; }
+
+      // FIX: use showScreen animation cleanly
+      const qs = document.getElementById('quiz-screen');
+      qs.style.animation = 'none';
+      void qs.offsetHeight;
+      qs.style.animation = 'fadeUp 0.35s cubic-bezier(.2,.8,.4,1) both';
+
+      loadQuestion();
+    }
+
+    // ── RESULTS ──
+    function showResults() {
+      clearInterval(timer);
+      showScreen('result-screen');
+
+      const wrong   = userAnswers.filter(a => a.status === 'incorrect').length;
+      const skipped = userAnswers.filter(a => a.status === 'skipped').length;
+      const pct     = Math.round((score / Q_COUNT) * 100);
+
+      const emoji = pct >= 80 ? '🏆' : pct >= 60 ? '🎯' : pct >= 40 ? '📖' : '💪';
+      const title = pct >= 80 ? 'Excellent!' : pct >= 60 ? 'Good Job!' : pct >= 40 ? 'Keep Studying' : 'Try Again!';
+
+      document.getElementById('resultEmoji').textContent  = emoji;
+      document.getElementById('resultTitle').textContent  = title;
+      document.getElementById('resultSub').textContent    = `You scored ${score} out of ${Q_COUNT} — ${pct}%`;
+      document.getElementById('scoreNum').textContent     = score;
+      document.getElementById('scoreDenom').textContent   = `/ ${Q_COUNT}`;
+      document.getElementById('statCorrect').textContent  = score;
+      document.getElementById('statWrong').textContent    = wrong;
+      document.getElementById('statSkipped').textContent  = skipped;
+      document.getElementById('statPct').textContent      = pct + '%';
+
+      setTimeout(() => {
+        const circum = 402.12;
+        document.getElementById('scoreCircle').style.strokeDashoffset = circum * (1 - score / Q_COUNT);
+      }, 120);
+
+      const tbody = document.getElementById('resultBody');
+      tbody.innerHTML = '';
+      userAnswers.forEach((a, i) => {
+        const yourAns = a.chosen === -1 ? 'Not Answered' : a.opts[a.chosen];
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="color:var(--text-muted)">${i + 1}</td>
+          <td>${a.question}</td>
+          <td style="color:var(--text-muted)">${yourAns}</td>
+          <td>${a.opts[a.correct]}</td>
+          <td><span class="badge ${a.status}">${a.status.charAt(0).toUpperCase() + a.status.slice(1)}</span></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ── RESTART ──
+    function restartQuiz() {
+      clearInterval(timer);
+      showScreen('start-screen');
+    }
+
+    // ── PDF DOWNLOAD ──
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const pct = Math.round((score / Q_COUNT) * 100);
+
+      doc.setFillColor(124, 77, 255);
+      doc.roundedRect(0, 0, 210, 32, 0, 0, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('QuizSphere — Results Report', 14, 14);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
+      doc.text('Web Technologies Quiz', 140, 22);
+
+      doc.setFillColor(245, 242, 255);
+      doc.rect(0, 32, 210, 22, 'F');
+      doc.setTextColor(100, 60, 200);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(`Final Score: ${score} / ${Q_COUNT}  (${pct}%)`, 14, 44);
+
+      const wrong   = userAnswers.filter(a => a.status === 'incorrect').length;
+      const skipped = userAnswers.filter(a => a.status === 'skipped').length;
+
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 150, 80);   doc.text(`Correct: ${score}`,   120, 40);
+      doc.setTextColor(210, 40, 40);  doc.text(`Incorrect: ${wrong}`, 120, 46);
+      doc.setTextColor(180, 100, 0);  doc.text(`Skipped: ${skipped}`, 155, 46);
+
+      const rows = userAnswers.map((a, i) => {
+        const yourAns = a.chosen === -1 ? 'Not Answered' : a.opts[a.chosen];
+        const label = a.status.charAt(0).toUpperCase() + a.status.slice(1);
+        return [i + 1, a.question, yourAns, a.opts[a.correct], label];
+      });
+
+      doc.autoTable({
+        startY: 60,
+        head: [['#', 'Question', 'Your Answer', 'Correct Answer', 'Status']],
+        body: rows,
+        headStyles: { fillColor: [124, 77, 255], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+        alternateRowStyles: { fillColor: [248, 246, 255] },
+        styles: { fontSize: 8.5, cellPadding: 4, overflow: 'linebreak' },
+        columnStyles: { 1: { cellWidth: 72 }, 2: { cellWidth: 35 }, 3: { cellWidth: 35 } },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index === 4) {
+            const v = data.cell.raw;
+            if (v === 'Correct')        data.cell.styles.textColor = [0, 150, 80];
+            else if (v === 'Incorrect') data.cell.styles.textColor = [200, 30, 30];
+            else                        data.cell.styles.textColor = [180, 100, 0];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      });
+
+      const pages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8); doc.setTextColor(160);
+        doc.text('QuizSphere — Web Technologies Quiz', 14, 290);
+        doc.text(`Page ${i} / ${pages}`, 185, 290);
+      }
+
+      doc.save('QuizSphere_Results.pdf');
+    }
+  </script>
+</body>
+</html>
