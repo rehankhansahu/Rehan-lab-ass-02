@@ -59,14 +59,15 @@ QuizSphere is an interactive web-based quiz application focused on Web Technolog
 
 ```id="x8fyjp"
 📁 QuizSphere  
-├── index.html  
+   
 ├── 1.PNG  
 ├── 2.PNG  
 ├── 3.PNG  
 ├── 5.PNG  
 ├── 6.PNG  
-├── demo.mp4  
-└── README.md  
+├── README.md 
+├── demo.mp4
+├── index.html
 ```
 
 ---
