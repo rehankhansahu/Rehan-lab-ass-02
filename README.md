@@ -21,29 +21,29 @@ QuizSphere is an interactive web-based quiz application focused on Web Technolog
 
 ### 🖥️ Main UI
 
-<img src="1.png" width="600"/>  
+<img src="1.PNG" width="600"/>  
 
 ### ❓ Question Screen
 
-<img src="2.png" width="600"/>  
+<img src="2.PNG" width="600"/>  
 
 ### 📊 Quiz Summary
 
-<img src="3.png" width="600"/>  
+<img src="3.PNG" width="600"/>  
 
 ### 📥 Download Option
 
-<img src="5.png" width="600"/>  
+<img src="5.PNG" width="600"/>  
 
 ### 📄 Downloaded PDF
 
-<img src="6.png" width="600"/>  
+<img src="6.PNG" width="600"/>  
 
 ---
 
 ## 🎥 Demo Video
 
-👉 <a href="demo.mp4">Click to Download / View Demo</a>
+👉 <a href="demo.mp4">🎥 Click to View Demo</a>
 
 ---
 
@@ -57,14 +57,14 @@ QuizSphere is an interactive web-based quiz application focused on Web Technolog
 
 ## 📂 Project Structure
 
-```
+```id="x8fyjp"
 📁 QuizSphere  
 ├── index.html  
-├── 1.png  
-├── 2.png  
-├── 3.png  
-├── 5.png  
-├── 6.png  
+├── 1.PNG  
+├── 2.PNG  
+├── 3.PNG  
+├── 5.PNG  
+├── 6.PNG  
 ├── demo.mp4  
 └── README.md  
 ```
